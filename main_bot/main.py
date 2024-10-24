@@ -24,7 +24,7 @@ subreddit_url_list = ['UnethicalLifeProTips',
 
 wsb_url = 'wallstreetbets'
 
-reddit_run_time = time(17, 6, 0)
+reddit_run_time = time(9, 0, 0)
 
 url_beginning = 'https://www.reddit.com/r/'
 url_end = '/top/.json?t=day'
@@ -96,10 +96,6 @@ async def on_ready():
         now = datetime.now()
         target_time = datetime.combine(now.date(), reddit_run_time)
         seconds_until_target = (target_time - now).total_seconds()
-
-        print(target_time)
-        print(now)
-        print(target_time - now)
         print('Waiting until target time - {}s'.format(seconds_until_target))
         await asyncio.sleep(seconds_until_target)
         await bot_reddit_post_daily()
