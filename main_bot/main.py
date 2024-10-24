@@ -85,8 +85,6 @@ def create_discord_reddit_message(subreddit_name, post, post_title, post_user, p
 async def on_ready():
     print(f'We have logged in as {client.user}')
 
-    await bot_reddit_post_daily()
-
     now = datetime.now()
     if now.time() > reddit_run_time:
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
