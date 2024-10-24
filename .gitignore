@@ -1,0 +1,4 @@
+.env
+.idea
+.venv
+main_bot/img/*
