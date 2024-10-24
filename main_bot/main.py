@@ -86,7 +86,7 @@ async def on_ready():
     print(f'We have logged in as {client.user}')
 
     await bot_reddit_post_daily()
-    '''
+
     now = datetime.now()
     if now.time() > reddit_run_time:
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
@@ -107,7 +107,7 @@ async def on_ready():
         await bot_reddit_post_daily()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
-        await asyncio.sleep(seconds)'''
+        await asyncio.sleep(seconds)
 
 
 @client.event
@@ -125,12 +125,9 @@ async def bot_reddit_post_daily():
 
     if wsb_post_data['post_file'] is not None:
         file = [discord.File(wsb_post_data['post_file'])]
-        #await channel.send(files=file, content=wsb_message)
-        print(wsb_message)
-        print(wsb_post_data['post_file'])
+        await channel.send(files=file, content=wsb_message)
     else:
-        print(wsb_message)
-        #await channel.send(content=wsb_message)
+        await channel.send(content=wsb_message)
 
     subreddit_picked_url = random.choice(subreddit_url_list)
 
@@ -144,12 +141,9 @@ async def bot_reddit_post_daily():
 
     if random_post_data['post_file'] is not None:
         file = [discord.File(random_post_data['post_file'])]
-        #await channel.send(files=file, content=random_message)
-        print(random_message)
-        print(random_post_data['post_file'])
+        await channel.send(files=file, content=random_message)
     else:
-        print(random_message)
-        #await channel.send(content=random_message)
+        await channel.send(content=random_message)
 
 
 @client.event
