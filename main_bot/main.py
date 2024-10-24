@@ -142,9 +142,10 @@ async def bot_reddit_post_daily():
 
 @client.event
 async def on_message(message):
-    print(f'{message.author} - {message.content}')
     if message.author == client.user:
         return
+
+    print(f'{message.author} - {message.content}')
 
     if message.content.startswith('$hello'):
         await message.channel.send('Hello!')
