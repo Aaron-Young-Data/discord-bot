@@ -8,11 +8,15 @@ import urllib.request, json
 from PIL import Image
 import random
 from types import NoneType
+import pandas as pd
+from PIL import ImageDraw, ImageFont, Image
+
 
 load_dotenv()
 
 token = getenv('DISCORD_TOKEN')
-channel_id = int(getenv('BOT_CHANNEL_ID'))
+bot_channel_id = int(getenv('BOT_CHANNEL_ID'))
+wotd_channel_id = int(getenv('WOTD_CHANNEL_ID'))
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -81,6 +85,18 @@ def create_discord_reddit_message(subreddit_name, post, post_title, post_user, p
     return message
 
 
+def text_position(text,
+                  image,
+                  font,
+                  text_height=2):
+    image_draw = ImageDraw.Draw(image)
+    textwidth, textheight = image_draw.textsize(text, font=font)
+    width, height = image.size
+    x = width / 2 - textwidth / 2
+    y = height / text_height - textheight / 2
+    return x, y
+
+
 @client.event
 async def on_ready():
     print(f'We have logged in as {client.user}')
@@ -99,6 +115,7 @@ async def on_ready():
         print('Waiting until target time - {}s'.format(seconds_until_target))
         await asyncio.sleep(seconds_until_target)
         await bot_reddit_post_daily()
+        await word_of_the_day()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
         await asyncio.sleep(seconds)
@@ -107,7 +124,7 @@ async def on_ready():
 @client.event
 async def bot_reddit_post_daily():
     await client.wait_until_ready()
-    channel = client.get_channel(channel_id)
+    channel = client.get_channel(bot_channel_id)
 
     wsb_post_data = get_top_post_reddit(subreddit=wsb_url)
 
@@ -141,20 +158,51 @@ async def bot_reddit_post_daily():
 
 
 @client.event
+async def word_of_the_day():
+    await client.wait_until_ready()
+    wotd_channel = client.get_channel(wotd_channel_id)
+
+    word_list = pd.read_csv('data/word_list.csv')['WORD'].to_list()
+    image = Image.open('data/don_cheadle.jpg')
+
+    font = ImageFont.truetype("arial.ttf", 90)
+
+    img_text1 = 'Don Cheadle'
+    img_text2 = 'word of the day'
+    wotd = random.choice(word_list).capitalize()
+
+    text_dict = {img_text1: 17,
+                 img_text2: 6,
+                 wotd: 1.25}
+
+    img_draw = ImageDraw.Draw(image)
+
+    for text in text_dict:
+        print(text, text_dict[text])
+        x, y = text_position(text=text, image=image, font=font, text_height=text_dict[text])
+        print(x, y)
+        img_draw.text((x, y), text, fill=(255, 255, 255), font=font)
+
+    image.save('data/don_cheadle_wotd.png')
+
+    await wotd_channel.send(file=discord.File('data/don_cheadle_wotd.png'))
+
+
+
+@client.event
 async def on_message(message):
     if message.author == client.user:
         return
 
     print(f'{message.author} - {message.content}')
 
-    if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
-
-    if message.content.startswith('$goodbye'):
-        await message.channel.send('Goodbye!')
-
     if message.content.startswith('$'):
-        await message.channel.send(message.content.replace('$', ''))
-
+        command = message.content.replace('$', '')
+        if command.lower() == 'hello':
+            await message.channel.send('Hello!')
+        if command.lower() == 'goodbye':
+            await message.channel.send('Goodbye!')
+        else:
+            await message.channel.send(command)
 
 client.run(token)
