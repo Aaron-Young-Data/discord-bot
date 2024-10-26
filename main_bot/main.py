@@ -90,10 +90,9 @@ def text_position(text,
                   font,
                   text_height=2):
     image_draw = ImageDraw.Draw(image)
-    textwidth, textheight = image_draw.textsize(text, font=font)
-    width, height = image.size
-    x = width / 2 - textwidth / 2
-    y = height / text_height - textheight / 2
+    text_length = image_draw.textlength(text, font=font)
+    x = (image.width - text_length) / 2
+    y = image.height / text_height
     return x, y
 
 
@@ -114,15 +113,17 @@ async def on_ready():
         seconds_until_target = (target_time - now).total_seconds()
         print('Waiting until target time - {}s'.format(seconds_until_target))
         await asyncio.sleep(seconds_until_target)
-        await bot_reddit_post_daily()
+        await bot_reddit_post_daily_wsb()
         await word_of_the_day()
+        await asyncio.sleep(60)
+        await bot_reddit_post_daily_random()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
         await asyncio.sleep(seconds)
 
 
 @client.event
-async def bot_reddit_post_daily():
+async def bot_reddit_post_daily_wsb():
     await client.wait_until_ready()
     channel = client.get_channel(bot_channel_id)
 
@@ -140,6 +141,10 @@ async def bot_reddit_post_daily():
     else:
         await channel.send(content=wsb_message)
 
+
+@client.event
+async def bot_reddit_post_daily_random():
+    channel = client.get_channel(bot_channel_id)
     subreddit_picked_url = random.choice(subreddit_url_list)
 
     random_post_data = get_top_post_reddit(subreddit=subreddit_picked_url, use_flair=False)
