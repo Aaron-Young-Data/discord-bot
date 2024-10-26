@@ -56,6 +56,8 @@ def get_top_post_reddit(subreddit,
                 else:
                     try:
                         post_media_url = post['data']['url_overridden_by_dest']
+                        if 'gallery' in post_media_url:
+                            post_media_url = post['data']['thumbnail']
                         file_name = 'img/wsb_image_downloaded.png'
                         urllib.request.urlretrieve(post_media_url, filename=file_name)
                     except KeyError:
