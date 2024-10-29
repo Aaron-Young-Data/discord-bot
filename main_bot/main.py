@@ -10,7 +10,7 @@ import random
 from types import NoneType
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
-
+import praw
 
 load_dotenv()
 
@@ -30,46 +30,55 @@ wsb_url = 'wallstreetbets'
 
 reddit_run_time = time(9, 0, 0)
 
-url_beginning = 'https://www.reddit.com/r/'
-url_end = '/top/.json?t=day'
-
-
 def get_top_post_reddit(subreddit,
                         use_flair=True,
                         flair='Loss'):
-    url = url_beginning + subreddit + url_end
 
-    file_name = None
-    with urllib.request.urlopen(url) as url:
-        print(f'Generating new post from {subreddit}')
-        data = json.load(url)
-        for post in data['data']['children']:
-            if post['data']['link_flair_text'] == flair or use_flair is False:
-                post_content = post['data']['selftext']
-                post_title = post['data']['title']
-                post_user = post['data']['author']
-                post_url = 'https://www.reddit.com' + post['data']['permalink']
-                if type(post['data']['media']) is not NoneType:
-                    post_media_url = post['data']['media']['fallback_url']
-                    file_name = 'img/wsb_video_downloaded.mp4'
-                    urllib.request.urlretrieve(post_media_url, filename=file_name)
-                else:
-                    try:
-                        post_media_url = post['data']['url_overridden_by_dest']
-                        if 'gallery' in post_media_url:
-                            post_media_url = post['data']['thumbnail']
-                        file_name = 'img/wsb_image_downloaded.png'
-                        urllib.request.urlretrieve(post_media_url, filename=file_name)
-                    except KeyError:
-                        file_name = None
+    reddit = praw.Reddit(
+        client_id=getenv('REDDIT_CLIENT'),
+        client_secret=getenv('REDDIT_SECRET'),
+        user_agent="Discord Bot by /u/cursingbutton01",
+        check_for_async=False
+    )
+
+    post_files = None
+    post_content = None
+    post_title = None
+    post_user = None
+    post_url = None
+
+    for submission in reddit.subreddit(subreddit).top(time_filter='day', limit=25):
+        if submission.link_flair_text == flair or use_flair is False:
+            post_user = submission.author.name
+            post_content = submission.selftext
+            post_title = submission.title
+            post_url = submission.url
+            try:
+                image_dict = submission.media_metadata
+                image_url_dict = {}
+                for image in image_dict.values():
+                    biggest_image_url = image['p'][-1]['u']
+                    biggest_image_id = image['id']
+                    image_url_dict[biggest_image_id] = biggest_image_url
+
+                post_files = []
+
+                for key in image_url_dict.keys():
+                    filename = 'img/' + key + '.png'
+                    urllib.request.urlretrieve(image_url_dict[key], filename=filename)
+                    post_files.append(filename)
                 break
+            except AttributeError:
+                print('No Images!')
+        else:
+            print('Post not valid!')
 
     return {
         'post_content': post_content,
         'post_title': post_title,
         'post_user': post_user,
         'post_url': post_url,
-        'post_file': file_name
+        'post_files': post_files
     }
 
 
@@ -117,7 +126,6 @@ async def on_ready():
         await asyncio.sleep(seconds_until_target)
         await bot_reddit_post_daily_wsb()
         await word_of_the_day()
-        await asyncio.sleep(60)
         await bot_reddit_post_daily_random()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
@@ -137,9 +145,11 @@ async def bot_reddit_post_daily_wsb():
                                                 post_user=wsb_post_data['post_user'],
                                                 post_url=wsb_post_data['post_url'])
 
-    if wsb_post_data['post_file'] is not None:
-        file = [discord.File(wsb_post_data['post_file'])]
-        await channel.send(files=file, content=wsb_message)
+    if wsb_post_data['post_files'] is not None:
+        file_list = []
+        for file in wsb_post_data['post_files']:
+            file_list.append(discord.File(file))
+        await channel.send(files=file_list, content=wsb_message)
     else:
         await channel.send(content=wsb_message)
 
@@ -157,9 +167,11 @@ async def bot_reddit_post_daily_random():
                                                    post_user=random_post_data['post_user'],
                                                    post_url=random_post_data['post_url'])
 
-    if random_post_data['post_file'] is not None:
-        file = [discord.File(random_post_data['post_file'])]
-        await channel.send(files=file, content=random_message)
+    if random_post_data['post_files'] is not None:
+        file_list = []
+        for file in random_post_data['post_files']:
+            file_list.append(discord.File(file))
+        await channel.send(files=file_list, content=random_message)
     else:
         await channel.send(content=random_message)
 
@@ -190,9 +202,9 @@ async def word_of_the_day():
         print(x, y)
         img_draw.text((x, y), text, fill=(255, 255, 255), font=font)
 
-    image.save('data/don_cheadle_wotd.png')
+    image.save('img/don_cheadle_wotd.png')
 
-    await wotd_channel.send(file=discord.File('data/don_cheadle_wotd.png'))
+    await wotd_channel.send(file=discord.File('img/don_cheadle_wotd.png'))
 
 
 
