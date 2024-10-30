@@ -38,7 +38,8 @@ def get_top_post_reddit(subreddit,
         client_id=getenv('REDDIT_CLIENT'),
         client_secret=getenv('REDDIT_SECRET'),
         user_agent="Discord Bot by /u/cursingbutton01",
-        check_for_async=False
+        username=getenv('REDDIT_USER'),
+        password=getenv('REDDIT_PASS'),
     )
 
     post_files = None
@@ -126,6 +127,7 @@ async def on_ready():
         await asyncio.sleep(seconds_until_target)
         await bot_reddit_post_daily_wsb()
         await word_of_the_day()
+        await asyncio.sleep(60)
         await bot_reddit_post_daily_random()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
