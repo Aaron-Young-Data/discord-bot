@@ -47,7 +47,7 @@ def get_top_post_reddit(subreddit,
     post_user = None
     post_url = None
 
-    for submission in reddit.subreddit(subreddit).top(time_filter='day', limit=25):
+    for submission in reddit.subreddit(subreddit).top(time_filter="day", limit=25):
         if submission.link_flair_text == flair or use_flair is False:
             post_user = submission.author.name
             post_content = submission.selftext
@@ -67,9 +67,9 @@ def get_top_post_reddit(subreddit,
                     filename = 'img/' + key + '.png'
                     urllib.request.urlretrieve(image_url_dict[key], filename=filename)
                     post_files.append(filename)
-                break
             except AttributeError:
                 print('No Images!')
+            break
         else:
             print('Post not valid!')
 
