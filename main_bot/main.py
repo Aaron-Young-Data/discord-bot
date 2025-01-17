@@ -1,16 +1,13 @@
 import asyncio
 from dotenv import load_dotenv
-from os import getenv
+from os import getenv, path
 import discord
-from discord.ext import commands
 from datetime import datetime, time, timedelta
-import urllib.request, json
-from PIL import Image
 import random
-from types import NoneType
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
-import praw
+import requests
+from urllib.parse import urlparse
 
 load_dotenv()
 
@@ -18,83 +15,15 @@ token = getenv('DISCORD_TOKEN')
 bot_channel_id = int(getenv('BOT_CHANNEL_ID'))
 wotd_channel_id = int(getenv('WOTD_CHANNEL_ID'))
 
+save_loc = getenv('SAVE_LOC')
+
 intents = discord.Intents.default()
 intents.message_content = True
-client = discord.Client(intents=intents, command_prefix='$')
+client = discord.Client(intents=intents, command_prefix='/')
 
-subreddit_url_list = ['UnethicalLifeProTips',
-                      'stupidquestions',
-                      'gambling']
-
-wsb_url = 'wallstreetbets'
+dog_api_url = 'https://dog.ceo/api/breeds/image/random'
 
 reddit_run_time = time(9, 0, 0)
-
-def get_top_post_reddit(subreddit,
-                        use_flair=True,
-                        flair='Loss'):
-
-    reddit = praw.Reddit(
-        client_id=getenv('REDDIT_CLIENT'),
-        client_secret=getenv('REDDIT_SECRET'),
-        user_agent="Discord Bot by /u/cursingbutton01",
-        username=getenv('REDDIT_USER'),
-        password=getenv('REDDIT_PASS'),
-    )
-
-    post_files = None
-    post_content = None
-    post_title = None
-    post_user = None
-    post_url = None
-
-    for submission in reddit.subreddit(subreddit).top(time_filter="day", limit=25):
-        if submission.link_flair_text == flair or use_flair is False:
-            post_user = submission.author.name
-            post_content = submission.selftext
-            post_title = submission.title
-            post_url = submission.url
-            try:
-                image_dict = submission.media_metadata
-                image_url_dict = {}
-                for image in image_dict.values():
-                    biggest_image_url = image['p'][-1]['u']
-                    biggest_image_id = image['id']
-                    image_url_dict[biggest_image_id] = biggest_image_url
-
-                post_files = []
-
-                for key in image_url_dict.keys():
-                    filename = 'img/' + key + '.png'
-                    urllib.request.urlretrieve(image_url_dict[key], filename=filename)
-                    post_files.append(filename)
-            except AttributeError:
-                print('No Images!')
-            break
-        else:
-            print('Post not valid!')
-
-    return {
-        'post_content': post_content,
-        'post_title': post_title,
-        'post_user': post_user,
-        'post_url': post_url,
-        'post_files': post_files
-    }
-
-
-def create_discord_reddit_message(subreddit_name, post, post_title, post_user, post_url):
-    if post == '':
-        message = (f'Sub Reddit - r/{subreddit_name}/\n\n'
-                   f'User {post_user} made a post titled {post_title}\n'
-                   f'Link: {post_url}\n')
-    else:
-        message = (f'Sub Reddit - r/{subreddit_name}/\n\n'
-                   f'User {post_user} made a post titled {post_title}\n'
-                   f'Link: {post_url}\n'
-                   f'Post:\n {post}')
-
-    return message
 
 
 def text_position(text,
@@ -106,6 +35,33 @@ def text_position(text,
     x = (image.width - text_length) / 2
     y = image.height / text_height
     return x, y
+
+
+def get_dog_picture():
+    response = requests.get(dog_api_url)
+
+    response_data = response.json()
+
+    if response_data['status'] == 'success':
+        print(response_data['message'])
+
+        image_url = response_data['message']
+        img_name = path.basename(urlparse(image_url).path)
+
+        img_data = requests.get(image_url).content
+
+        with open(save_loc + img_name, 'wb') as handler:
+            handler.write(img_data)
+
+        breed = image_url.split('/')[4].replace('-', ' ')
+
+        breed = ' '.join(breed.split()[::-1])
+
+    else:
+        raise Exception('API call not successful')
+
+    return {'file': save_loc + img_name,
+            'breed': breed}
 
 
 @client.event
@@ -125,57 +81,11 @@ async def on_ready():
         seconds_until_target = (target_time - now).total_seconds()
         print('Waiting until target time - {}s'.format(seconds_until_target))
         await asyncio.sleep(seconds_until_target)
-        await bot_reddit_post_daily_wsb()
-        await word_of_the_day()
-        await asyncio.sleep(60)
-        await bot_reddit_post_daily_random()
+        #await word_of_the_day()
+        await daily_send_dog_img()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
         await asyncio.sleep(seconds)
-
-
-@client.event
-async def bot_reddit_post_daily_wsb():
-    await client.wait_until_ready()
-    channel = client.get_channel(bot_channel_id)
-
-    wsb_post_data = get_top_post_reddit(subreddit=wsb_url)
-
-    wsb_message = create_discord_reddit_message(subreddit_name=wsb_url,
-                                                post=wsb_post_data['post_content'],
-                                                post_title=wsb_post_data['post_title'],
-                                                post_user=wsb_post_data['post_user'],
-                                                post_url=wsb_post_data['post_url'])
-
-    if wsb_post_data['post_files'] is not None:
-        file_list = []
-        for file in wsb_post_data['post_files']:
-            file_list.append(discord.File(file))
-        await channel.send(files=file_list, content=wsb_message)
-    else:
-        await channel.send(content=wsb_message)
-
-
-@client.event
-async def bot_reddit_post_daily_random():
-    channel = client.get_channel(bot_channel_id)
-    subreddit_picked_url = random.choice(subreddit_url_list)
-
-    random_post_data = get_top_post_reddit(subreddit=subreddit_picked_url, use_flair=False)
-
-    random_message = create_discord_reddit_message(subreddit_name=subreddit_picked_url,
-                                                   post=random_post_data['post_content'],
-                                                   post_title=random_post_data['post_title'],
-                                                   post_user=random_post_data['post_user'],
-                                                   post_url=random_post_data['post_url'])
-
-    if random_post_data['post_files'] is not None:
-        file_list = []
-        for file in random_post_data['post_files']:
-            file_list.append(discord.File(file))
-        await channel.send(files=file_list, content=random_message)
-    else:
-        await channel.send(content=random_message)
 
 
 @client.event
@@ -209,6 +119,14 @@ async def word_of_the_day():
     await wotd_channel.send(file=discord.File('img/don_cheadle_wotd.png'))
 
 
+@client.event
+async def daily_send_dog_img():
+    bot_channel = client.get_channel(bot_channel_id)
+
+    dog_pic = get_dog_picture()
+    await bot_channel.send(f"It is a {dog_pic['breed']} :dog:",
+                           file=discord.File(dog_pic['file']))
+
 
 @client.event
 async def on_message(message):
@@ -217,13 +135,18 @@ async def on_message(message):
 
     print(f'{message.author} - {message.content}')
 
-    if message.content.startswith('$'):
-        command = message.content.replace('$', '')
+    if message.content.startswith('/'):
+        command = message.content.replace('/', '')
         if command.lower() == 'hello':
             await message.channel.send('Hello!')
-        if command.lower() == 'goodbye':
+        elif command.lower() == 'goodbye':
             await message.channel.send('Goodbye!')
+        elif command.lower() == 'dog':
+            dog_pic = get_dog_picture()
+            await message.channel.send(f"New dog for {message.author}! It is a {dog_pic['breed']} :dog:",
+                                       file=discord.File(dog_pic['file']))
         else:
             await message.channel.send(command)
+
 
 client.run(token)
