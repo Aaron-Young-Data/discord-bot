@@ -81,7 +81,7 @@ async def on_ready():
         seconds_until_target = (target_time - now).total_seconds()
         print('Waiting until target time - {}s'.format(seconds_until_target))
         await asyncio.sleep(seconds_until_target)
-        #await word_of_the_day()
+        await word_of_the_day()
         await daily_send_dog_img()
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
