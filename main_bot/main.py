@@ -6,6 +6,7 @@ from datetime import datetime, time, timedelta
 import random
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
+from typing import Literal, get_args
 import requests
 from urllib.parse import urlparse
 
@@ -14,16 +15,60 @@ load_dotenv()
 token = getenv('DISCORD_TOKEN')
 bot_channel_id = int(getenv('BOT_CHANNEL_ID'))
 wotd_channel_id = int(getenv('WOTD_CHANNEL_ID'))
-
 save_loc = getenv('SAVE_LOC')
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents, command_prefix='/')
 
-dog_api_url = 'https://dog.ceo/api/breeds/image/random'
+animals = Literal['dog', 'cat', 'bunny', 'rabbit','duck']
 
-reddit_run_time = time(9, 0, 0)
+dog_url = 'https://dog.ceo/api/breeds/image/random'
+cat_url = 'https://cataas.com/cat'
+bunny_url = 'https://api.bunnies.io/v2/loop/random/?media=gif'
+duck_url = 'https://random-d.uk/api/v1/random?type=jpg'
+
+reddit_run_time = time(14, 22, 0)
+
+
+def download_img(url: str):
+    name = path.basename(urlparse(url).path)
+
+    if name == 'cat':
+        name = 'cat.jpg'
+
+    data = requests.get(url).content
+    with open(save_loc + name, 'wb') as handler:
+        handler.write(data)
+    return save_loc + name
+
+
+def get_api_data(url: str):
+    response = requests.get(url)
+    return response.json()
+
+
+def get_random_animal(animal: animals):
+    if animal == 'dog':
+        response_data = get_api_data(dog_url)
+        if response_data['status'] == 'success':
+            return {'file': download_img(response_data['message']),
+                    'url': dog_url}
+        else:
+            raise Exception(f"Request for Dog image failed response - {response_data['status']}")
+    elif animal == 'cat':
+        return {'file': download_img(cat_url),
+                'url': cat_url}
+    elif animal in ('bunny', 'rabbit'):
+        response_data = get_api_data(bunny_url)
+        return {'file': response_data['media']['gif'],
+                'url': response_data['media']['gif']}
+    elif animal == 'duck':
+        response_data = get_api_data(duck_url)
+        return {'file': download_img(response_data['url']),
+                'url': response_data['url']}
+    else:
+        raise Exception(f'Animal {animal} is not supported!')
 
 
 def text_position(text,
@@ -35,33 +80,6 @@ def text_position(text,
     x = (image.width - text_length) / 2
     y = image.height / text_height
     return x, y
-
-
-def get_dog_picture():
-    response = requests.get(dog_api_url)
-
-    response_data = response.json()
-
-    if response_data['status'] == 'success':
-        print(response_data['message'])
-
-        image_url = response_data['message']
-        img_name = path.basename(urlparse(image_url).path)
-
-        img_data = requests.get(image_url).content
-
-        with open(save_loc + img_name, 'wb') as handler:
-            handler.write(img_data)
-
-        breed = image_url.split('/')[4].replace('-', ' ')
-
-        breed = ' '.join(breed.split()[::-1])
-
-    else:
-        raise Exception('API call not successful')
-
-    return {'file': save_loc + img_name,
-            'breed': breed}
 
 
 @client.event
@@ -123,8 +141,13 @@ async def word_of_the_day():
 async def daily_send_dog_img():
     bot_channel = client.get_channel(bot_channel_id)
 
-    dog_pic = get_dog_picture()
-    await bot_channel.send(f"It is a {dog_pic['breed']} :dog:",
+    dog_pic = get_random_animal(animal='dog')
+
+    breed = dog_pic['url'].split('/')[4].replace('-', ' ')
+
+    breed = ' '.join(breed.split()[::-1])
+
+    await bot_channel.send(f"New daily Dog! It is a {breed} :dog:",
                            file=discord.File(dog_pic['file']))
 
 
@@ -137,14 +160,33 @@ async def on_message(message):
 
     if message.content.startswith('/'):
         command = message.content.replace('/', '')
-        if command.lower() == 'hello':
+        command_prefix = command.split(' ')[0]
+        if command_prefix.lower() == 'hello':
             await message.channel.send('Hello!')
-        elif command.lower() == 'goodbye':
+        elif command_prefix.lower() == 'goodbye':
             await message.channel.send('Goodbye!')
-        elif command.lower() == 'dog':
-            dog_pic = get_dog_picture()
-            await message.channel.send(f"New dog for {message.author}! It is a {dog_pic['breed']} :dog:",
-                                       file=discord.File(dog_pic['file']))
+        elif command_prefix.lower() == 'animal':
+            animal = command.split(' ')[1]
+            if animal.lower() in get_args(animals):
+                data = get_random_animal(animal.lower())
+                img = data['file']
+                url = data['url']
+                if animal.lower() == 'dog':
+                    breed = url.split('/')[4].replace('-', ' ')
+                    breed = ' '.join(breed.split()[::-1]).capitalize()
+                    await message.channel.send(f"New dog for {message.author}! It is a {breed} :dog:",
+                                               file=discord.File(img))
+                else:
+                    if animal.lower() in ('bunny', 'rabbit'):
+                        animal = 'rabbit'
+                        await message.channel.send(f"New {animal} for {message.author}! :{animal}:")
+                        await message.channel.send(f"{img}")
+                    else:
+                        await message.channel.send(f"New {animal} for {message.author}! :{animal}:",
+                                                   file=discord.File(img))
+
+            else:
+                await message.channel.send('I cant find that animal yet!')
         else:
             await message.channel.send(command)
 
