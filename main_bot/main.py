@@ -174,15 +174,15 @@ async def on_message(message):
                 if animal.lower() == 'dog':
                     breed = url.split('/')[4].replace('-', ' ')
                     breed = ' '.join(breed.split()[::-1]).capitalize()
-                    await message.channel.send(f"New dog for {message.author}! It is a {breed} :dog:",
+                    await message.channel.send(f"New dog for @{message.author}! It is a {breed} :dog:",
                                                file=discord.File(img))
                 else:
                     if animal.lower() in ('bunny', 'rabbit'):
                         animal = 'rabbit'
-                        await message.channel.send(f"New {animal} for {message.author}! :{animal}:")
+                        await message.channel.send(f"New {animal} for @{message.author}! :{animal}:")
                         await message.channel.send(f"{img}")
                     else:
-                        await message.channel.send(f"New {animal} for {message.author}! :{animal}:",
+                        await message.channel.send(f"New {animal} for @{message.author}! :{animal}:",
                                                    file=discord.File(img))
 
             else:
