@@ -53,7 +53,7 @@ def get_random_animal(animal: animals):
         response_data = get_api_data(dog_url)
         if response_data['status'] == 'success':
             return {'file': download_img(response_data['message']),
-                    'url': dog_url}
+                    'url': response_data['message']}
         else:
             raise Exception(f"Request for Dog image failed response - {response_data['status']}")
     elif animal == 'cat':
