@@ -7,83 +7,32 @@ import random
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
 from typing import Literal, get_args
-import requests
-from urllib.parse import urlparse
+from utils import ImgUtils, APIUtils, animals, GamblingUtils
 
 load_dotenv()
 
 token = getenv('DISCORD_TOKEN')
 bot_channel_id = int(getenv('BOT_CHANNEL_ID'))
 wotd_channel_id = int(getenv('WOTD_CHANNEL_ID'))
+gambling_channel_id = int(getenv('GAMBLING_CHANNEL_ID'))
 save_loc = getenv('SAVE_LOC')
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents, command_prefix='/')
 
-animals = Literal['dog', 'cat', 'bunny', 'rabbit','duck']
+reddit_run_time = time(9, 0, 0)
 
-dog_url = 'https://dog.ceo/api/breeds/image/random'
-cat_url = 'https://cataas.com/cat'
-bunny_url = 'https://api.bunnies.io/v2/loop/random/?media=gif'
-duck_url = 'https://random-d.uk/api/v1/random?type=jpg'
+gambling_utils = GamblingUtils()
+api_utils = APIUtils(save_loc=save_loc)
+img_utils = ImgUtils(save_loc=save_loc)
 
-reddit_run_time = time(14, 22, 0)
-
-
-def download_img(url: str):
-    name = path.basename(urlparse(url).path)
-
-    if name == 'cat':
-        name = 'cat.jpg'
-
-    data = requests.get(url).content
-    with open(save_loc + name, 'wb') as handler:
-        handler.write(data)
-    return save_loc + name
-
-
-def get_api_data(url: str):
-    response = requests.get(url)
-    return response.json()
-
-
-def get_random_animal(animal: animals):
-    if animal == 'dog':
-        response_data = get_api_data(dog_url)
-        if response_data['status'] == 'success':
-            return {'file': download_img(response_data['message']),
-                    'url': response_data['message']}
-        else:
-            raise Exception(f"Request for Dog image failed response - {response_data['status']}")
-    elif animal == 'cat':
-        return {'file': download_img(cat_url),
-                'url': cat_url}
-    elif animal in ('bunny', 'rabbit'):
-        response_data = get_api_data(bunny_url)
-        return {'file': response_data['media']['gif'],
-                'url': response_data['media']['gif']}
-    elif animal == 'duck':
-        response_data = get_api_data(duck_url)
-        return {'file': download_img(response_data['url']),
-                'url': response_data['url']}
-    else:
-        raise Exception(f'Animal {animal} is not supported!')
-
-
-def text_position(text,
-                  image,
-                  font,
-                  text_height=2):
-    image_draw = ImageDraw.Draw(image)
-    text_length = image_draw.textlength(text, font=font)
-    x = (image.width - text_length) / 2
-    y = image.height / text_height
-    return x, y
-
+win_gif = "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc2xoZTB3a2h5MHp6MGE4NDlzaXJ2ZnhjdHd4cmYwb2MzOWFtNXIwdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l2SpXDaRDHBhLc0s8/giphy.gif"
+lose_gif = "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3B5eXN2MmZ1ejNldnZmNTRrMnVyano5aDg0cnVhcDA1bjYwZmM0MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l2SpO2558KNLdARcQ/giphy.gif"
 
 @client.event
 async def on_ready():
+    gambling_channel = client.get_channel(gambling_channel_id)
     print(f'We have logged in as {client.user}')
 
     now = datetime.now()
@@ -101,6 +50,10 @@ async def on_ready():
         await asyncio.sleep(seconds_until_target)
         await word_of_the_day()
         await daily_send_dog_img()
+        roulette_num = gambling_utils.pick_random_roulette_number()
+        img_loc = img_utils.create_roulette_img(number=roulette_num,
+                                                colour=gambling_utils.get_roulette_number_colour(roulette_num))
+        await gambling_channel.send("Today's roulette number:", file=discord.File(img_loc))
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
         await asyncio.sleep(seconds)
@@ -128,7 +81,7 @@ async def word_of_the_day():
 
     for text in text_dict:
         print(text, text_dict[text])
-        x, y = text_position(text=text, image=image, font=font, text_height=text_dict[text])
+        x, y = img_utils.text_position(text=text, image=image, font=font, text_height=text_dict[text])
         print(x, y)
         img_draw.text((x, y), text, fill=(255, 255, 255), font=font)
 
@@ -141,7 +94,7 @@ async def word_of_the_day():
 async def daily_send_dog_img():
     bot_channel = client.get_channel(bot_channel_id)
 
-    dog_pic = get_random_animal(animal='dog')
+    dog_pic = api_utils.get_random_animal(animal='dog')
 
     breed = dog_pic['url'].split('/')[4].replace('-', ' ')
 
@@ -161,14 +114,38 @@ async def on_message(message):
     if message.content.startswith('/'):
         command = message.content.replace('/', '')
         command_prefix = command.split(' ')[0]
-        if command_prefix.lower() == 'hello':
-            await message.channel.send('Hello!')
-        elif command_prefix.lower() == 'goodbye':
-            await message.channel.send('Goodbye!')
+        if command_prefix.lower() == 'roulette':
+            if message.channel.id == gambling_channel_id:
+                user_num = command.split(' ')[-1]
+                passed = False
+                try:
+                    int(user_num)
+                    if int(user_num) not in [i for i in range(0, 37)]:
+                        await message.channel.send('Please enter number between 0 and 36')
+                    else:
+                        passed = True
+                except ValueError:
+                    await message.channel.send(f'{user_num} was not recognised as a number')
+
+                if passed:
+                    roulette_num = gambling_utils.pick_random_roulette_number()
+                    img_loc = img_utils.create_roulette_img(number=roulette_num,
+                                                            colour=gambling_utils.get_roulette_number_colour(roulette_num))
+
+                    if roulette_num == int(user_num):
+                        await message.channel.send(f"The number is:",
+                                                   file=discord.File(img_loc))
+                        await message.channel.send(f"You Win!")
+                        await message.channel.send(win_gif)
+                    else:
+                        await message.channel.send(f"The number is:",
+                                                   file=discord.File(img_loc))
+                        await message.channel.send(f"You Lose!")
+                        await message.channel.send(lose_gif)
         elif command_prefix.lower() == 'animal':
             animal = command.split(' ')[1]
             if animal.lower() in get_args(animals):
-                data = get_random_animal(animal.lower())
+                data = api_utils.get_random_animal(animal.lower())
                 img = data['file']
                 url = data['url']
                 if animal.lower() == 'dog':
@@ -188,7 +165,6 @@ async def on_message(message):
             else:
                 await message.channel.send('I cant find that animal yet!')
         else:
-            await message.channel.send(command)
-
+            await message.channel.send(f'Command {command} not recognised!')
 
 client.run(token)
