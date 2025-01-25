@@ -7,26 +7,32 @@ import random
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
 from typing import Literal, get_args
-from utils import ImgUtils, APIUtils, animals
+from utils import ImgUtils, APIUtils, animals, GamblingUtils
 
 load_dotenv()
 
 token = getenv('DISCORD_TOKEN')
 bot_channel_id = int(getenv('BOT_CHANNEL_ID'))
 wotd_channel_id = int(getenv('WOTD_CHANNEL_ID'))
+gambling_channel_id = int(getenv('GAMBLING_CHANNEL_ID'))
 save_loc = getenv('SAVE_LOC')
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents, command_prefix='/')
 
-reddit_run_time = time(14, 22, 0)
+reddit_run_time = time(16, 32, 0)
 
+gambling_utils = GamblingUtils()
 api_utils = APIUtils(save_loc=save_loc)
 img_utils = ImgUtils(save_loc=save_loc)
 
+win_gif = "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc2xoZTB3a2h5MHp6MGE4NDlzaXJ2ZnhjdHd4cmYwb2MzOWFtNXIwdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l2SpXDaRDHBhLc0s8/giphy.gif"
+lose_gif = "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3B5eXN2MmZ1ejNldnZmNTRrMnVyano5aDg0cnVhcDA1bjYwZmM0MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l2SpO2558KNLdARcQ/giphy.gif"
+
 @client.event
 async def on_ready():
+    gambling_channel = client.get_channel(gambling_channel_id)
     print(f'We have logged in as {client.user}')
 
     now = datetime.now()
@@ -44,6 +50,10 @@ async def on_ready():
         await asyncio.sleep(seconds_until_target)
         await word_of_the_day()
         await daily_send_dog_img()
+        roulette_num = gambling_utils.pick_random_roulette_number()
+        img_loc = img_utils.create_roulette_img(number=roulette_num,
+                                                colour=gambling_utils.get_roulette_number_colour(roulette_num))
+        await gambling_channel.send("Today's roulette number:", file=discord.File(img_loc))
         tomorrow = datetime.combine(now.date() + timedelta(days=1), time(0))
         seconds = (tomorrow - now).total_seconds()
         await asyncio.sleep(seconds)
@@ -104,10 +114,34 @@ async def on_message(message):
     if message.content.startswith('/'):
         command = message.content.replace('/', '')
         command_prefix = command.split(' ')[0]
-        if command_prefix.lower() == 'hello':
-            await message.channel.send('Hello!')
-        elif command_prefix.lower() == 'goodbye':
-            await message.channel.send('Goodbye!')
+        if command_prefix.lower() == 'roulette':
+            if message.channel.id == gambling_channel_id:
+                user_num = command.split(' ')[-1]
+                passed = False
+                try:
+                    int(user_num)
+                    if int(user_num) not in [i for i in range(0, 37)]:
+                        await message.channel.send('Please enter number between 0 and 36')
+                    else:
+                        passed = True
+                except ValueError:
+                    await message.channel.send(f'{user_num} was not recognised as a number')
+
+                if passed:
+                    roulette_num = gambling_utils.pick_random_roulette_number()
+                    img_loc = img_utils.create_roulette_img(number=roulette_num,
+                                                            colour=gambling_utils.get_roulette_number_colour(roulette_num))
+
+                    if roulette_num == int(user_num):
+                        await message.channel.send(f"The number is:",
+                                                   file=discord.File(img_loc))
+                        await message.channel.send(f"You Win!")
+                        await message.channel.send(win_gif)
+                    else:
+                        await message.channel.send(f"The number is:",
+                                                   file=discord.File(img_loc))
+                        await message.channel.send(f"You Lose!")
+                        await message.channel.send(lose_gif)
         elif command_prefix.lower() == 'animal':
             animal = command.split(' ')[1]
             if animal.lower() in get_args(animals):
@@ -131,7 +165,6 @@ async def on_message(message):
             else:
                 await message.channel.send('I cant find that animal yet!')
         else:
-            await message.channel.send(command)
-
+            await message.channel.send(f'Command {command} not recognised!')
 
 client.run(token)
