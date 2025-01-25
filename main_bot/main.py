@@ -7,8 +7,7 @@ import random
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
 from typing import Literal, get_args
-import requests
-from urllib.parse import urlparse
+from utils import Utils, animals
 
 load_dotenv()
 
@@ -21,66 +20,9 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents, command_prefix='/')
 
-animals = Literal['dog', 'cat', 'bunny', 'rabbit','duck']
-
-dog_url = 'https://dog.ceo/api/breeds/image/random'
-cat_url = 'https://cataas.com/cat'
-bunny_url = 'https://api.bunnies.io/v2/loop/random/?media=gif'
-duck_url = 'https://random-d.uk/api/v1/random?type=jpg'
-
 reddit_run_time = time(14, 22, 0)
 
-
-def download_img(url: str):
-    name = path.basename(urlparse(url).path)
-
-    if name == 'cat':
-        name = 'cat.jpg'
-
-    data = requests.get(url).content
-    with open(save_loc + name, 'wb') as handler:
-        handler.write(data)
-    return save_loc + name
-
-
-def get_api_data(url: str):
-    response = requests.get(url)
-    return response.json()
-
-
-def get_random_animal(animal: animals):
-    if animal == 'dog':
-        response_data = get_api_data(dog_url)
-        if response_data['status'] == 'success':
-            return {'file': download_img(response_data['message']),
-                    'url': response_data['message']}
-        else:
-            raise Exception(f"Request for Dog image failed response - {response_data['status']}")
-    elif animal == 'cat':
-        return {'file': download_img(cat_url),
-                'url': cat_url}
-    elif animal in ('bunny', 'rabbit'):
-        response_data = get_api_data(bunny_url)
-        return {'file': response_data['media']['gif'],
-                'url': response_data['media']['gif']}
-    elif animal == 'duck':
-        response_data = get_api_data(duck_url)
-        return {'file': download_img(response_data['url']),
-                'url': response_data['url']}
-    else:
-        raise Exception(f'Animal {animal} is not supported!')
-
-
-def text_position(text,
-                  image,
-                  font,
-                  text_height=2):
-    image_draw = ImageDraw.Draw(image)
-    text_length = image_draw.textlength(text, font=font)
-    x = (image.width - text_length) / 2
-    y = image.height / text_height
-    return x, y
-
+u = Utils(save_loc=save_loc)
 
 @client.event
 async def on_ready():
@@ -128,7 +70,7 @@ async def word_of_the_day():
 
     for text in text_dict:
         print(text, text_dict[text])
-        x, y = text_position(text=text, image=image, font=font, text_height=text_dict[text])
+        x, y = u.text_position(text=text, image=image, font=font, text_height=text_dict[text])
         print(x, y)
         img_draw.text((x, y), text, fill=(255, 255, 255), font=font)
 
@@ -141,7 +83,7 @@ async def word_of_the_day():
 async def daily_send_dog_img():
     bot_channel = client.get_channel(bot_channel_id)
 
-    dog_pic = get_random_animal(animal='dog')
+    dog_pic = u.get_random_animal(animal='dog')
 
     breed = dog_pic['url'].split('/')[4].replace('-', ' ')
 
@@ -168,7 +110,7 @@ async def on_message(message):
         elif command_prefix.lower() == 'animal':
             animal = command.split(' ')[1]
             if animal.lower() in get_args(animals):
-                data = get_random_animal(animal.lower())
+                data = u.get_random_animal(animal.lower())
                 img = data['file']
                 url = data['url']
                 if animal.lower() == 'dog':
