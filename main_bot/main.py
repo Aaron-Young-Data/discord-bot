@@ -21,7 +21,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents, command_prefix='/')
 
-reddit_run_time = time(16, 32, 0)
+reddit_run_time = time(9, 0, 0)
 
 gambling_utils = GamblingUtils()
 api_utils = APIUtils(save_loc=save_loc)
