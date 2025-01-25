@@ -7,7 +7,7 @@ import random
 import pandas as pd
 from PIL import ImageDraw, ImageFont, Image
 from typing import Literal, get_args
-from utils import Utils, animals
+from utils import ImgUtils, APIUtils, animals
 
 load_dotenv()
 
@@ -22,7 +22,8 @@ client = discord.Client(intents=intents, command_prefix='/')
 
 reddit_run_time = time(14, 22, 0)
 
-u = Utils(save_loc=save_loc)
+api_utils = APIUtils(save_loc=save_loc)
+img_utils = ImgUtils(save_loc=save_loc)
 
 @client.event
 async def on_ready():
@@ -70,7 +71,7 @@ async def word_of_the_day():
 
     for text in text_dict:
         print(text, text_dict[text])
-        x, y = u.text_position(text=text, image=image, font=font, text_height=text_dict[text])
+        x, y = img_utils.text_position(text=text, image=image, font=font, text_height=text_dict[text])
         print(x, y)
         img_draw.text((x, y), text, fill=(255, 255, 255), font=font)
 
@@ -83,7 +84,7 @@ async def word_of_the_day():
 async def daily_send_dog_img():
     bot_channel = client.get_channel(bot_channel_id)
 
-    dog_pic = u.get_random_animal(animal='dog')
+    dog_pic = api_utils.get_random_animal(animal='dog')
 
     breed = dog_pic['url'].split('/')[4].replace('-', ' ')
 
@@ -110,7 +111,7 @@ async def on_message(message):
         elif command_prefix.lower() == 'animal':
             animal = command.split(' ')[1]
             if animal.lower() in get_args(animals):
-                data = u.get_random_animal(animal.lower())
+                data = api_utils.get_random_animal(animal.lower())
                 img = data['file']
                 url = data['url']
                 if animal.lower() == 'dog':
