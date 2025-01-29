@@ -27,8 +27,8 @@ gambling_utils = GamblingUtils()
 api_utils = APIUtils(save_loc=save_loc)
 img_utils = ImgUtils(save_loc=save_loc)
 
-win_gif = "https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExc2xoZTB3a2h5MHp6MGE4NDlzaXJ2ZnhjdHd4cmYwb2MzOWFtNXIwdiZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l2SpXDaRDHBhLc0s8/giphy.gif"
-lose_gif = "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExc3B5eXN2MmZ1ejNldnZmNTRrMnVyano5aDg0cnVhcDA1bjYwZmM0MSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/l2SpO2558KNLdARcQ/giphy.gif"
+win_gif = "https://shorturl.at/DJm5h"
+lose_gif = "https://shorturl.at/EpqnX"
 
 @client.event
 async def on_ready():
@@ -133,15 +133,15 @@ async def on_message(message):
                                                             colour=gambling_utils.get_roulette_number_colour(roulette_num))
 
                     if roulette_num == int(user_num):
-                        await message.channel.send(f"The number is:",
+                        await message.channel.send(f"{message.author.mention} The number is {roulette_num}."
+                                                   f"\nYou Win!"
+                                                   f"\n{win_gif}",
                                                    file=discord.File(img_loc))
-                        await message.channel.send(f"You Win!")
-                        await message.channel.send(win_gif)
                     else:
-                        await message.channel.send(f"The number is:",
+                        await message.channel.send(f"{message.author.mention} The number is {roulette_num}!"
+                                                   f"\nYou Lose!"
+                                                   f"\n{lose_gif}",
                                                    file=discord.File(img_loc))
-                        await message.channel.send(f"You Lose!")
-                        await message.channel.send(lose_gif)
         elif command_prefix.lower() == 'animal':
             animal = command.split(' ')[1]
             if animal.lower() in get_args(animals):
