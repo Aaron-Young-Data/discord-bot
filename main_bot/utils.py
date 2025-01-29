@@ -4,6 +4,7 @@ from PIL import ImageDraw, Image, ImageFont
 import requests
 from urllib.parse import urlparse
 from typing import Literal
+from uuid import uuid4
 
 animals = Literal['dog', 'cat', 'bunny', 'rabbit', 'duck']
 
@@ -82,9 +83,11 @@ class ImgUtils:
                   font=font,
                   fill="white")
 
-        image.save(self.save_loc + 'roulette.png')
+        image_loc = self.save_loc + str(uuid4()) + '.png'
 
-        return self.save_loc + 'roulette.png'
+        image.save(image_loc)
+
+        return image_loc
 
 
     @staticmethod
