@@ -12,6 +12,7 @@ from utils import ImgUtils, APIUtils, animals, GamblingUtils
 load_dotenv()
 
 token = getenv('DISCORD_TOKEN')
+pixabay_key = getenv('PIXABAY_KEY')
 bot_channel_id = int(getenv('BOT_CHANNEL_ID'))
 wotd_channel_id = int(getenv('WOTD_CHANNEL_ID'))
 gambling_channel_id = int(getenv('GAMBLING_CHANNEL_ID'))
@@ -24,7 +25,8 @@ client = discord.Client(intents=intents, command_prefix='/')
 reddit_run_time = time(9, 0, 0)
 
 gambling_utils = GamblingUtils()
-api_utils = APIUtils(save_loc=save_loc)
+api_utils = APIUtils(save_loc=save_loc,
+                     pixabay_key=pixabay_key)
 img_utils = ImgUtils(save_loc=save_loc)
 
 win_gif = "https://shorturl.at/DJm5h"

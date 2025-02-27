@@ -5,17 +5,20 @@ import requests
 from urllib.parse import urlparse
 from typing import Literal
 from uuid import uuid4
+from random import choice
 
-animals = Literal['dog', 'cat', 'bunny', 'rabbit', 'duck']
+animals = Literal['dog', 'cat', 'bunny', 'rabbit', 'duck', 'otter']
 
 class APIUtils:
-    def __init__(self, save_loc: str):
+    def __init__(self,
+                 save_loc: str,
+                 pixabay_key: str):
 
         self.dog_url = 'https://dog.ceo/api/breeds/image/random'
         self.cat_url = 'https://cataas.com/cat'
         self.bunny_url = 'https://api.bunnies.io/v2/loop/random/?media=gif'
         self.duck_url = 'https://random-d.uk/api/v1/random?type=jpg'
-
+        self.otter_url = f'https://pixabay.com/api/?key={pixabay_key}&q=otter&per_page=100'
         self.img_utils = ImgUtils(save_loc=save_loc)
 
     def get_api_data(self, url: str):
@@ -41,6 +44,18 @@ class APIUtils:
             response_data = self.get_api_data(self.duck_url)
             return {'file': self.img_utils.download_img(response_data['url']),
                     'url': response_data['url']}
+        elif animal == 'otter':
+            response_data = self.get_api_data(self.otter_url)
+            non_ai = False
+            while not non_ai:
+                image = choice(response_data['hits'])
+                if 'ai generated' not in image['tags']:
+                    non_ai = False
+                else:
+                    image_url = choice(response_data['hits'])['largeImageURL']
+                    non_ai = True
+            return {'file': self.img_utils.download_img(image_url),
+                    'url': image_url}
         else:
             raise Exception(f'Animal {animal} is not supported!')
 
